@@ -1,0 +1,73 @@
+#include <iostream>
+#include <string>
+using namespace std; 
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
+
+// Define type of point cloud
+typedef pcl::PointXYZRGBA PointT;
+typedef pcl::PointCloud<PointT> PointCloud;
+
+// The parameters for Camera
+const double camera_factor = 1000;
+const double camera_cx = 325.5;
+const double camera_cy = 253.5;
+const double camera_fx = 518.0;
+const double camera_fy = 519.0;
+
+// Main function
+int main( int argc, char** argv )
+{
+  // read ./data/rgb.png and ./data/depth.png, transform them into pointcloud
+  // image matrix
+     cv::Mat rgb, depth;
+  // Use cv::imread to read image API website:http://docs.opencv.org/modules/highgui/doc/reading_and_writing_images_and_video.html?highlight=imread#cv2.imread
+     rgb = cv::imread("./data/rgb.png");
+     depth = cv::imread("./data/depth.png", -1);
+  // The rgb image is 8UC3 color image
+  // The depth image is 16UC1 single channel image, we need to set flags to -1 in order to read the original data without any modification
+  
+ 
+}
+
+// PointCloud Variable
+// Use smart point to set up an empty pointcloud, this kind of pointer will be released automatically when its done
+PointCloud::Ptr cloud ( new PointCloud );
+for ( int m=0; m<depth.rows; m++ )
+    for ( int n=0; n<depth.cols; n++)
+    {
+        ushort d = depth.ptr<ushort>(m)[n]; //Get the value at (m,n) in depth image
+        if (d == 0)  // if d is equal to zero, skip this point in depth image
+           continue;
+        PointT p;    // if value of d exists, add this point to pointcloud
+        
+        // Calculate the coordinates of this point in space
+        p.z = double(d) / camera_factor;
+        p.x = (n - camera_cx) * p.z / camera_fx;
+        p.y = (m - camera_cy) * p.z / camera_fy;
+
+        // Get the information about color from rgb image, rgb image is in 3-channels format, we can get the color in following way
+        p.b = rgb.ptr<uchar>(m)[n*3];
+        p.g = rgb.ptr<uchar>(m)[n*3+1];
+        p.r = rgb.ptr<uchar>(m)[n*3+2];
+
+        // Add point p into pointcloud
+        cloud->points.push_back( p );
+
+    }
+ 
+// Set and save pointcloud
+cloud->height = 1;
+cloud->width = cloud->points.size();
+cout<<"point cloud size = "<<cloud->points.size()<<endl;
+cloud->is_dense = false;
+pcl::io::savePCDFile("./pointcloud.pcd", *cloud);
+
+// Clean all data and exist
+cloud->points.clear();
+cout<<"Point cloud saved."<<endl;
+return 0;
+}
+
